@@ -5,6 +5,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 
+import igoodie.twitchspawn.tracer.DonationAlertsSocket;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -32,6 +33,9 @@ public class CommandTwitchSpawn extends CommandBase {
 	public static final HashMap<String, String> EVENT_TYPES = new HashMap<>(); {
 		EVENT_TYPES.put("donation", "donation|streamlabs");
 		EVENT_TYPES.put("d", "donation|streamlabs");
+
+		EVENT_TYPES.put("donationD", "donation|donationalerts");
+		EVENT_TYPES.put("dD", "donation|donationalerts");
 		
 		EVENT_TYPES.put("bits", "bits|twitch_account");
 		EVENT_TYPES.put("b", "bits|twitch_account");
@@ -116,8 +120,8 @@ public class CommandTwitchSpawn extends CommandBase {
 
 		// Stop if already running
 		if(StreamLabsSocket.isRunning()) {
-			TwitchSpawn.LOGGER.warn("TwitchSpawn already running. Start command sent by " + sender.getName());
-			MinecraftServerUtils.noticeChatFor(sender, ">> TwitchSpawn is already running!", TextFormatting.RED);
+			TwitchSpawn.LOGGER.warn("TwitchSpawn: StreamLabs already running. Start command sent by " + sender.getName());
+			MinecraftServerUtils.noticeChatFor(sender, ">> TwitchSpawn: StreamLabs is already running!", TextFormatting.RED);
 			return;
 		}
 
@@ -130,20 +134,38 @@ public class CommandTwitchSpawn extends CommandBase {
 			TwitchTracer.instance = new TwitchTracer(streamerNick); // TODO Change API to TwitchTracer::start()
 			TwitchTracer.instance.start();
 		} catch(IllegalArgumentException e) { // Invalid socket token
-			TwitchSpawn.LOGGER.error("TwitchSpawn won't work, because tokens are not valid. Check config file!");
-			MinecraftServerUtils.noticeChatFor(sender, ">> TwitchSpawn configs are invalid. Please check/refill them", TextFormatting.RED);
+			TwitchSpawn.LOGGER.error("TwitchSpawn: StreamLabs won't work, because tokens are not valid. Check config file!");
+			MinecraftServerUtils.noticeChatFor(sender, ">> TwitchSpawn: StreamLabs config are invalid. Please check/refill it.", TextFormatting.RED);
 			return;
 		}
 
-		// Let everybody know TwitchSpawn is now listening to Streamlabs Socket!
-		MinecraftServerUtils.noticeChatAll(">> TwitchSpawn is now started in this server!", TextFormatting.AQUA);
+		// Stop if already running
+		if(DonationAlertsSocket.isRunning()) {
+			TwitchSpawn.LOGGER.warn("TwitchSpawn: DonationAlerts already running. Start command sent by " + sender.getName());
+			MinecraftServerUtils.noticeChatFor(sender, ">> TwitchSpawn: DonationAlerts is already running!", TextFormatting.RED);
+			return;
+		}
+
+		// Fetch donationalerts token
+		String DA_SocketApiToken = Configs.json.get("da_socket_api_token").getAsString();
+
+		try {
+			DonationAlertsSocket.start(DA_SocketApiToken);
+		} catch(IllegalArgumentException e) { // Invalid socket token
+			TwitchSpawn.LOGGER.error("TwitchSpawn: DonationAlerts won't work, because tokens are not valid. Check config file!");
+			MinecraftServerUtils.noticeChatFor(sender, ">> TwitchSpawn: DonationAlerts configs are invalid. Please check/refill them", TextFormatting.RED);
+			return;
+		}
+
+		// Let everybody know TwitchSpawn is now listening to DonationAlerts Socket!
+		MinecraftServerUtils.noticeChatAll(">> TwitchSpawn: DonationAlerts is now started in this server!", TextFormatting.AQUA);
 	}
 
 	public void moduleStop(ICommandSender sender) throws CommandException {
 		// Stop if not running
 		if(!StreamLabsSocket.isRunning()) {
-			TwitchSpawn.LOGGER.warn("TwitchSpawn already stopped. Stop command sent by " + sender.getName());
-			MinecraftServerUtils.noticeChatFor(sender, ">> TwitchSpawn is already stopped!", TextFormatting.RED);
+			TwitchSpawn.LOGGER.warn("TwitchSpawn: StreamLabs already stopped. Stop command sent by " + sender.getName());
+			MinecraftServerUtils.noticeChatFor(sender, ">> TwitchSpawn: StreamLabs is already stopped!", TextFormatting.RED);
 			return;
 		}
 
@@ -155,13 +177,24 @@ public class CommandTwitchSpawn extends CommandBase {
 			TwitchTracer.instance = null;
 		}
 
+		if(!DonationAlertsSocket.isRunning()) {
+			TwitchSpawn.LOGGER.warn("TwitchSpawn: DonationAlerts already stopped. Stop command sent by " + sender.getName());
+			MinecraftServerUtils.noticeChatFor(sender, ">> TwitchSpawn: DonationAlerts is already stopped!", TextFormatting.RED);
+			return;
+		}
+
+		DonationAlertsSocket.dispose();
+
 		MinecraftServerUtils.noticeChatFor(sender, ">> TwitchSpawn stopped.", TextFormatting.AQUA);
 		MinecraftServerUtils.noticeChatAll(">> TwitchSpawn now left the server. :c", TextFormatting.AQUA);
 	}
 
 	public void moduleReloadCfg(ICommandSender sender) throws CommandException {
 		if(StreamLabsSocket.isRunning())
-			throw new CommandException("TwitchSpawn should be stopped in order to be able to reload configs. Type '/twitchspawn stop' and retry.");
+			throw new CommandException("TwitchSpawn: StreamLabs should be stopped in order to be able to reload configs. Type '/twitchspawn stop' and retry.");
+
+		if(DonationAlertsSocket.isRunning())
+			throw new CommandException("TwitchSpawn: DonationAlerts should be stopped in order to be able to reload configs. Type '/twitchspawn stop' and retry.");
 
 		Configs.load();
 		MinecraftServerUtils.noticeChatFor(sender, ">> TwitchSpawn reloaded configs.", TextFormatting.BLUE);
@@ -179,7 +212,10 @@ public class CommandTwitchSpawn extends CommandBase {
 			throw new WrongUsageException("/twitchspawn test <nick> <amount> [type]", new Object[0]);
 
 		if(!StreamLabsSocket.isRunning())
-			throw new CommandException("TwitchSpawn is currently not running. Turn it on before using test donation.");
+			throw new CommandException("TwitchSpawn: StreamLabs is currently not running. Turn it on before using test donation.");
+
+		if(!DonationAlertsSocket.isRunning())
+			throw new CommandException("TwitchSpawn: DonationAlerts is currently not running. Turn it on before using test donation.");
 
 		//Fetch & evaluate args
 		try {

@@ -41,6 +41,8 @@ public class Configs {
 		// Add tokens
 		changesMade |= addValue("access_token", "!Your Streamlabs API Access Token here!");
 		changesMade |= addValue("socket_api_token", "!Your Streamlabs Socket API Token here!");
+
+		changesMade |= addValue("da_socket_api_token", "!Your DonationAlerts Socket API Token here!");
 		
 		// Add nicks
 		changesMade |= addValue("streamer_mc_nick", "!Your Minecraft nick here!");
