@@ -20,6 +20,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.util.ResourceLocation;
 
 public class FileUtils {
+	
 	public static boolean fileExists(String path) {
 		return new File(path).exists();
 	}
@@ -60,6 +61,7 @@ public class FileUtils {
 	
 	public static void writeString(String data, String path) {
 		try {
+			createFile(path);
 			File f = new File(path);
 			FileWriter fw = new FileWriter(f);
 			BufferedWriter bw = new BufferedWriter(fw);
@@ -67,7 +69,7 @@ public class FileUtils {
 			bw.close();
 		}
 		catch(IOException e) {
-			
+			System.out.println("ERROR");
 		}
 	}
 
